@@ -270,7 +270,7 @@ export default class AuthScreen extends Component {
           keyboardVerticalOffset={50}
           style={styles.screen}>
           <View style={styles.topContainer}>
-            <StatusBar backgroundColor="#6e45e2" />
+            <StatusBar backgroundColor="#6e45e3" />
             <LinearGradient
               colors={['#6e45e2', '#88d3ce']}
               style={styles.gradientContainer}>
