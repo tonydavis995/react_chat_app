@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "177007104543",
+    "firebase_url": "https://sidekick-b3765.firebaseio.com",
+    "project_id": "sidekick-b3765",
+    "storage_bucket": "sidekick-b3765.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:177007104543:android:f823b046486718a8a17b2a",
+        "android_client_info": {
+          "package_name": "com.reffera.sidekick"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "177007104543-4tud6n2dabr9g16kkeplmdeg7e64qjip.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.reffera.sidekick",
+            "certificate_hash": "74870dd7d037af83b373e81489835400670dea5c"
+          }
+        },
+        {
+          "client_id": "177007104543-0ul0df0u1kaliudsk4n1topbl92ge7kg.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDgkoq91U63g7YgZmyYLz5wxaRAbTu-h5M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "177007104543-0ul0df0u1kaliudsk4n1topbl92ge7kg.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
