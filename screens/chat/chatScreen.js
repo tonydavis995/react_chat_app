@@ -11,6 +11,7 @@ export default class ChatScreen extends React.Component {
   state = {
     messages: [],
   };
+  //test
 
   componentDidMount() {
     this.setState({
