@@ -37,7 +37,7 @@ export default class ChatScreen extends React.Component {
           },
           sent: true,
           received: true,
-          payTmPaid: {
+          payTm: {
             latitude: 48.864601,
             longitude: 2.398704,
           },
