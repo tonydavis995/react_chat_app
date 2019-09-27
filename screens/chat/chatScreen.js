@@ -1,8 +1,10 @@
 import React from 'react';
 import {View, StyleSheet, Image, TouchableHighlight, Text} from 'react-native';
-import {GiftedChat, Bubble} from 'react-native-gifted-chat';
+import {GiftedChat, Bubble, Send} from 'react-native-gifted-chat';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import IconCheck from 'react-native-vector-icons/AntDesign';
+import IconSend from 'react-native-vector-icons/EvilIcons';
+import AccessoryBar from '../../components/accessoryBar'
 // import emojiUtils from 'emoji-utils';
 
 export default class ChatScreen extends React.Component {
@@ -87,6 +89,20 @@ export default class ChatScreen extends React.Component {
       };
     }
   }
+  renderSend(props) {
+    return (
+        <Send
+            {...props}
+        >
+            <View style={{flexDirection : 'row', alignItems: 'center', justifyContent: 'flex-start',marginRight: 12, marginBottom: 12}}>
+            <IconSend style={{ fontSize: 35, color: '#4A90E2' }}
+                  
+                  name="sc-telegram"></IconSend>
+            </View>
+        </Send>
+    );
+}
+  renderActions = () => <AccessoryBar  />
   renderBubble = props => {
     return (
       <Bubble
@@ -348,11 +364,14 @@ export default class ChatScreen extends React.Component {
         renderCustomView={this.renderCustomView}
         alwaysShowSend={true}
         isAnimated={true}
-        placeholder="Your assistant is waiting! Type here"
+        placeholder="Your assistant is waiting!!!"
         onSend={messages => this.onSend(messages)}
         user={{
           _id: 1,
         }}
+        renderSend ={this.renderSend}
+        renderActions = {this.renderActions}
+        // renderComposer={this.renderAccessory}
         renderBubble={this.renderBubble}
         // renderMessage={this.renderMessage}
         parsePatterns={linkStyle => [
