@@ -7,25 +7,24 @@
  */
 
 import React from 'react';
-import {
-  StyleSheet,
+import {createStore, applyMiddleware, combineReducers} from 'redux';
+import {Provider} from 'react-redux';
+import ReduxThunk from 'redux-thunk';
+import {loginReducer, nameReducer, emailReducer, avatarReducer} from './store/reducers/auth';
+import messageReducer from './store/reducers/chat';
+import locationReducer from './store/reducers/location';
 
-  View,
-  Text,
-} from 'react-native';
-import MainNavigator from "./navigator/mainNavigator";
-
-
-
+const createStoreWithMiddleware = applyMiddleware(ReduxThunk)(createStore);
+const reducer = combineReducers({loginReducer, messageReducer, nameReducer, emailReducer, avatarReducer, locationReducer})
+const store = createStoreWithMiddleware(reducer);
+import MainNavigator from './navigator/mainNavigator';
 
 const App = () => {
   return (
-  <MainNavigator/>
+    <Provider store={store}>
+      <MainNavigator />
+    </Provider>
   );
 };
-
-const styles = StyleSheet.create({
- 
-});
 
 export default App;

@@ -1,139 +1,345 @@
 import React from 'react';
-import {View, StyleSheet, Image, TouchableHighlight, Text} from 'react-native';
+import {
+  View,
+  StyleSheet,
+  ImageBackground,
+  Image,
+  StatusBar,
+  TouchableWithoutFeedback,
+  TouchableOpacity,
+  TouchableHighlight,
+  Text,
+  Modal,
+  Platform,
+} from 'react-native';
 import {GiftedChat, Bubble, Send} from 'react-native-gifted-chat';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import IconCheck from 'react-native-vector-icons/AntDesign';
 import IconSend from 'react-native-vector-icons/EvilIcons';
-import AccessoryBar from '../../components/accessoryBar'
-// import emojiUtils from 'emoji-utils';
+import AccessoryBar from '../../components/accessoryBar';
+import {connect} from 'react-redux';
+import {openChat, sendMessage} from '../../store/actions/chat';
+import UserAvatar  from 'react-native-user-avatar';
+import ImageViewer from 'react-native-image-zoom-viewer';
+import AsyncStorage from '@react-native-community/async-storage';
+import Paytm from '@philly25/react-native-paytm';
+import Colors from '../../constants/colors';
 
-export default class ChatScreen extends React.Component {
-  state = {
-    messages: [],
+
+const paytmConfig = {
+  MID: 'yxfSYX93676064839454',
+  WEBSITE: 'WEBSTAGING',
+  CHANNEL_ID: 'WAP',
+  INDUSTRY_TYPE_ID: 'Retail',
+  CALLBACK_URL: 'https://securegw.paytm.in/theia/paytmCallback?ORDER_ID='
+};
+const mapStateToProps = state => {
+  return {
+    messageState: state.messageReducer,
+    nameState: state.nameReducer,
+    loginState: state.loginReducer
   };
-  //test
+};
+const user = {
+  _id: 1,
+  name: 'Developer',
+}
 
+class ChatScreen extends React.Component {
+
+ static navigationOptions = ({navigation}) => {
+   try {
+    const { params = {name} } = navigation.state;
+    return {
+      headerTitle: (
+        <View
+          style={{
+            backgroundColor: Colors.accent,
+            flex: 1,
+            height: '100%',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+          }}>
+          <View
+            style={{
+              flex: 0.8,
+              width: '20%',
+              height: '100%',
+            }}>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={{
+                margin: '3%',
+                width: 100,
+                height: 40,
+                position: 'relative',
+              }}></Image>
+          </View>
+          <TouchableWithoutFeedback
+            onPress={() => navigation.navigate('Profile')}>
+            <View
+              style={{
+                right: 10,
+                backgroundColor: Colors.white,
+                width: 40,
+                height: 40,
+                borderRadius: 100,
+                position: 'absolute',
+              }}>
+               <UserAvatar size="40" style={{position: 'relative'}} colors={[Colors.accent, Colors.accent, Colors.error]} name={params.name || 'User'}  />
+              {/* <Image
+                source={require('../../assets/images/paytm.png')}
+                style={{position: 'relative', width: 40, height: 40}}></Image> */}
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      ),
+    };
+   } catch (error) {
+     console.log(error)
+   }
+    
+      
+    };
+    runTransaction(amount, customerId, orderId, mobile, email, checkSum) {
+      const callbackUrl = `${paytmConfig.CALLBACK_URL}${orderId}`;
+      const details = {
+        mode: 'Staging', // 'Staging' or 'Production'
+        MID: paytmConfig.MID,
+        INDUSTRY_TYPE_ID: paytmConfig.INDUSTRY_TYPE_ID,
+        WEBSITE: paytmConfig.WEBSITE,
+        CHANNEL_ID: paytmConfig.CHANNEL_ID,
+        TXN_AMOUNT: `${amount}`, // String
+        ORDER_ID: orderId, // String
+        EMAIL: email, // String
+        MOBILE_NO: mobile, // String
+        CUST_ID: customerId, // String
+        CHECKSUMHASH: checkSum, //From your server using PayTM Checksum Utility 
+        CALLBACK_URL: callbackUrl,
+      };
+      try {
+        console.log(details)
+        Paytm.startPayment(details);
+      } catch (error) {
+        console.log(error)
+      }
+     
+  }
+  constructor(props) {
+    super(props);
+      this.state = {
+        modalImageVisible: false,
+        imageUrl : null,
+        messages: [],
+      };
+    this.openImageViewer = this.openImageViewer.bind(this);
+    this.buttonPress = this.buttonPress.bind(this);
+    this.onGoToMap = this.onGoToMap.bind(this)
+  }
+  openImageViewer(images)  {
+    console.log(images)
+    console.log(images.splice(1))
+    this.setState({modalImageVisible: true, imageUrl: images})
+  }
+  buttonPress() {
+    console.log('pressed');
+    this.props.navigation.navigate('Profile');
+  }
+  setName = async() => {
+    const name = await AsyncStorage.getItem('@UserStore:name')
+
+    this.props.navigation.setParams({ name: JSON.parse(name) });
+  }
+  onPayTmResponse = (resp) => {
+    const {STATUS, status, response} = resp;
+    console.log(resp)
+
+    if (Platform.OS === 'ios') {
+      if (status === 'Success') {
+        const jsonResponse = JSON.parse(response);
+        const {STATUS} = jsonResponse;
+
+        if (STATUS && STATUS === 'TXN_SUCCESS') {
+          // Payment succeed!
+        }
+      }
+    } else {
+      if (STATUS && STATUS === 'TXN_SUCCESS') {
+        console.log('kkkk',resp, 'dasdsadasdsdsd')
+       try {
+        fetch('http://13.126.12.242/api/paytm/verifychecksum', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        resp: resp
+      })
+    })
+       } catch (error) {
+         console.log(error)
+       }
+      }
+    }
+  };
+  componentWillUnmount(){
+    Paytm.removeListener(Paytm.Events.PAYTM_RESPONSE, this.onPayTmResponse);
+  }
   componentDidMount() {
-    this.setState({
-      messages: [
-        {
-          _id: 1,
-          text: 'https://placeimg.com/140/140',
-          createdAt: new Date(),
-          user: {
-            _id: 2,
-            name: 'React Native',
-            avatar: 'https://placeimg.com/140/140/any',
-          },
-        },
-        {
-          _id: Math.round(Math.random() * 1000000),
+    Paytm.addListener(Paytm.Events.PAYTM_RESPONSE, this.onPayTmResponse);
+   
+   this.setName()
+    openChat({phoneNumber: '7012912325'});
 
-          createdAt: new Date(),
-          user: {
-            _id: 3,
-            name: 'React Native',
-            avatar: require('../../assets/images/paytm.png'),
-          },
-          sent: true,
-          received: true,
-          payTm: {
-            latitude: 48.864601,
-            longitude: 2.398704,
-          },
-        },
-        {
-          _id: 3,
-          text: 'Sorry',
-          createdAt: new Date(),
-          user: {
-            _id: 2,
-            name: 'React Native',
-            avatar: 'https://placeimg.com/140/140/any',
-          },
-          image: 'https://placeimg.com/140/140/any',
-          location: {
-            latitude: 48.864601,
-            longitude: 2.398704,
-          },
-        },
-        // {
-        //     _id: 9,
-        //     text: 'Chat with US',
-        //     createdAt: new Date(),
-        //     system: true
-        //   },
-      ],
-    });
   }
 
   onSend(messages = []) {
+    this.props.sendMessage({to: '9999999999', from: '7012912325', message: messages}, messages[0]);
     console.log(messages);
-    this.setState(previousState => ({
-      messages: GiftedChat.append(previousState.messages, messages),
-    }));
+    console.log(this.props.messageState)
+    // this.setState(previousState => ({
+    //   messages: GiftedChat.append(previousState.messages, messages),
+    // }));
   }
 
-  renderMessage(props) {
-    const {
-      currentMessage: {text: currText},
-    } = props;
+  renderMessageImage(props) {
+    const images = [{
+      // Simplest usage.
+      url: props.currentMessage.image,
+      // You can pass props to <Image />.
+      props: {
+        // headers: ...
+      }
+    }, {
+      props: {
+        // Or you can set source directory.
+        // source: require('../background.png')
+      }
+    }];
+    return(
+      <TouchableOpacity onPress={() => props.imageProps.openImageViewer(images)}>
+        <Image
+          source={{ uri: props.currentMessage.image }}
+          style = {styles.image}
+        />
+      </TouchableOpacity>
+    );
+  }
+  //   renderMessage(props) {
+  //     // const {
+  //     //   currentMessage: {text: currText},
+  //     // } = props;
+  // return(
+  //   <View style={{backgroundColor: 'black'}}>
+  //     <GiftedChat {...props} />
+  //   </View>
+  // )
+  //     // let messageTextStyle;
 
-    let messageTextStyle;
-
-    // Make "pure emoji" messages much bigger than plain text.
-    if (currText && emojiUtils.isPureEmojiString(currText)) {
-      messageTextStyle = {
-        fontSize: 28,
-        // Emoji get clipped if lineHeight isn't increased; make it consistent across platforms.
-        lineHeight: Platform.OS === 'android' ? 34 : 30,
-      };
-    }
+  //     // Make "pure emoji" messages much bigger than plain text.
+  //     // if (currText && emojiUtils.isPureEmojiString(currText)) {
+  //     //   messageTextStyle = {
+  //     //     fontSize: 28,
+  //     //     // Emoji get clipped if lineHeight isn't increased; make it consistent across platforms.
+  //     //     lineHeight: Platform.OS === 'android' ? 34 : 30,
+  //     //   };
+  //     // }
+  //   }
+  paytmPay=() => {
+    const orderid = Math.floor(Math.random() * 1000);
+    const orderstringid  = orderid.toString()
+    console.log(orderstringid)
+  try {
+    const callbackUrl = `${paytmConfig.CALLBACK_URL}${orderstringid}`;
+    fetch('http://13.126.12.242/api/paytm/generatechecksum', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ORDER_ID: orderstringid,
+        CUST_ID: '8',
+        TXN_AMOUNT: '100',
+        EMAIL: 'vinayakvnair007@gmail.com',
+        MOBILE_NO: '7777777777',
+        CALLBACK_URL: callbackUrl
+      })
+    }).then( async (response)=> {
+      let json = await response.json();
+     
+      this.runTransaction('100','8',orderstringid,'7777777777','vinayakvnair007@gmail.com',json)
+    }).catch((error)=> console.log(error))
+  } catch (error) {
+    console.log(error)
+  }
   }
   renderSend(props) {
     return (
-        <Send
-            {...props}
-        >
-            <View style={{flexDirection : 'row', alignItems: 'center', justifyContent: 'flex-start',marginRight: 12, marginBottom: 12}}>
-            <IconSend style={{ fontSize: 35, color: '#4A90E2' }}
-                  
-                  name="sc-telegram"></IconSend>
-            </View>
-        </Send>
+      <Send {...props}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            marginRight: 12,
+            marginBottom: 12,
+          }}>
+          <IconSend
+            style={{fontSize: 35, color: Colors.accent}}
+            name="sc-telegram"></IconSend>
+        </View>
+      </Send>
     );
-}
-  renderActions = () => <AccessoryBar  />
+  }
+  onSendFromUser = (messages = []) => {
+    const createdAt = new Date()
+    const messagesToUpload = messages.map(message => ({
+      ...message,
+      user,
+      createdAt,
+      _id: Math.round(Math.random() * 1000000),
+    }))
+    this.onSend(messagesToUpload)
+  }
+  onGoToMap()
+  {
+    this.props.navigation.navigate('map')
+    // this.props.navigation.navigate('map')
+  }
+  renderCustomActions = props => {
+    return <AccessoryBar {...props} onGoMap={this.onGoToMap} onSend={this.onSendFromUser} />
+  }
   renderBubble = props => {
     return (
       <Bubble
         {...props}
         wrapperStyle={{
           right: {
-            backgroundColor: 'rgba(74,144,226,1)',
+            backgroundColor: Colors.accent,
             borderTopLeftRadius: 25,
             borderTopRightRadius: 0,
             borderBottomRightRadius: 25,
             borderBottomLeftRadius: 25,
             shadowColor: 'black',
-            shadowOpacity: 0.2,
+            shadowOpacity: 0.26,
             shadowOffset: {width: 0, height: 2},
-            shadowRadius: 3,
-            elevation: 3,
+            shadowRadius: 5,
+            elevation: 2,
           },
           left: {
             paddingHorizontal: 10,
             paddingTop: 5,
-            backgroundColor: '#F7F8FB',
+            backgroundColor: Colors.white,
             borderTopLeftRadius: 0,
             borderTopRightRadius: 25,
             borderBottomRightRadius: 25,
             borderBottomLeftRadius: 25,
             shadowColor: 'black',
-            shadowOpacity: 0.2,
+            shadowOpacity: 0.26,
             shadowOffset: {width: 0, height: 2},
-            shadowRadius: 3,
-            elevation: 3,
+            shadowRadius: 5,
+            elevation: 2,
           },
         }}
       />
@@ -155,7 +361,7 @@ export default class ChatScreen extends React.Component {
               height: 150,
               borderRadius: 13,
               margin: 3,
-              borderColor: 'rgba(74,144,226,1)',
+              borderColor: Colors.accent,
               borderWidth: 2,
               borderStyle: 'dashed',
               flexDirection: 'column',
@@ -189,7 +395,7 @@ export default class ChatScreen extends React.Component {
                 }}>
                 <Text
                   style={{
-                    color: '#121212',
+                    color: Colors.text,
                     position: 'relative',
                     fontSize: 35,
                   }}>
@@ -211,7 +417,9 @@ export default class ChatScreen extends React.Component {
                 justifyContent: 'space-between',
               }}>
               <TouchableHighlight
-                onPress={() => console.log('pressed')}
+                onPress={() => {
+                  this.paytmPay()
+                }}
                 style={{
                   width: '45%',
                   height: 40,
@@ -219,13 +427,13 @@ export default class ChatScreen extends React.Component {
                   alignItems: 'center',
                   justifyContent: 'center',
 
-                  backgroundColor: 'rgba(74,144,226,1)',
+                  backgroundColor: Colors.accent,
                   opacity: 1,
                   borderRadius: 50,
                 }}>
                 <Text
                   style={{
-                    color: 'white',
+                    color: Colors.white,
                   }}>
                   Pay
                 </Text>
@@ -238,12 +446,12 @@ export default class ChatScreen extends React.Component {
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderRadius: 50,
-                  borderColor: 'rgba(74,144,226,1)',
+                  borderColor: Colors.accent,
                   borderWidth: 2,
                 }}>
                 <Text
                   style={{
-                    color: 'rgba(74,144,226,1)',
+                    color: Colors.accent,
                   }}>
                   Decline
                 </Text>
@@ -268,7 +476,7 @@ export default class ChatScreen extends React.Component {
               height: 150,
               borderRadius: 13,
               margin: 3,
-              borderColor: '#dddddd',
+              borderColor: Colors.paytmBorder,
               borderWidth: 2,
               borderStyle: 'dashed',
               flexDirection: 'column',
@@ -301,7 +509,7 @@ export default class ChatScreen extends React.Component {
                 }}>
                 <Text
                   style={{
-                    color: '#121212',
+                    color: Colors.text,
                     position: 'relative',
                     fontSize: 35,
                   }}>
@@ -317,8 +525,7 @@ export default class ChatScreen extends React.Component {
                   style={{
                     position: 'relative',
                     fontSize: 25,
-                    color: '#1ed761',
-                   
+                    color: Colors.paytmSuccessIcon,
                   }}
                   name="checkcircle"></IconCheck>
               </View>
@@ -336,18 +543,14 @@ export default class ChatScreen extends React.Component {
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}>
-              <View
-                style={{
-                  
-                }}>
+              <View style={{}}>
                 <Text
                   style={{
-                    color: '#121212',
+                    color: Colors.text,
                   }}>
                   Payment Successful
                 </Text>
               </View>
-             
             </View>
           </View>
         </View>
@@ -356,36 +559,61 @@ export default class ChatScreen extends React.Component {
   };
   render() {
     return (
-      <GiftedChat
-        messages={this.state.messages}
-        // messageIdGenerator={(messages)=> {
-        //     return '33434'
-        // }}
-        renderAvatarOnTop={true}
-        renderCustomView={this.renderCustomView}
-        alwaysShowSend={true}
-        isAnimated={true}
-        placeholder="Your assistant is waiting!!!"
-        onSend={messages => this.onSend(messages)}
-        user={{
-          _id: 1,
+      <View style={{flex: 1}}>
+        <StatusBar backgroundColor={Colors.accent} />
+        <ImageBackground
+          source={require('../../assets/background.png')}
+          style={{flex: 1,}}>
+          <GiftedChat
+            messages={this.props.messageState}
+            messageIdGenerator={(messages)=> {
+                return Math.round(Math.random() * 1000000)
+            }}
+            renderAvatarOnTop={true}
+            renderCustomView={this.renderCustomView}
+            alwaysShowSend={true}
+            isAnimated={true}
+            placeholder="Your assistant is waiting!!!"
+            onSend={messages => this.onSend(messages)}
+            user={{
+              _id: 1,
+            }}
+            renderMessageImage={this.renderMessageImage}
+            imageProps={{openImageViewer: this.openImageViewer}}
+            renderSend={this.renderSend}
+              renderActions={this.renderCustomActions}
+            // renderComposer={this.renderAccessory}
+            renderBubble={this.renderBubble}
+            // renderMessage={this.renderMessage}
+            parsePatterns={linkStyle => [
+              {
+                pattern: /#(\w+)/,
+                // style: { ...linkStyle, color: 'red' },
+                onPress: props => alert(`press on ${props}`),
+              },
+            ]}
+          />
+           <Modal
+        visible={this.state.modalImageVisible}
+        onRequestClose={() => {
+          this.setState({modalImageVisible: false});
         }}
-        renderSend ={this.renderSend}
-        renderActions = {this.renderActions}
-        // renderComposer={this.renderAccessory}
-        renderBubble={this.renderBubble}
-        // renderMessage={this.renderMessage}
-        parsePatterns={linkStyle => [
-          {
-            pattern: /#(\w+)/,
-            // style: { ...linkStyle, color: 'red' },
-            onPress: props => alert(`press on ${props}`),
-          },
-        ]}
-      />
+        transparent={true}
+      >
+        <ImageViewer
+          imageUrls={this.state.imageUrl}
+        />
+      </Modal>
+        </ImageBackground>
+      </View>
     );
   }
 }
+
+export default connect(
+  mapStateToProps,
+  {openChat, sendMessage},
+)(ChatScreen);
 
 const styles = StyleSheet.create({
   container: {
@@ -407,7 +635,7 @@ const styles = StyleSheet.create({
     shadowOffset: {width: 0, height: 2},
     shadowRadius: 5,
     elevation: 5,
-    borderColor: 'rgba(74,144,226,1)',
+    borderColor: Colors.accent,
     borderWidth: 2,
     borderStyle: 'dashed',
   },
@@ -434,7 +662,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   amount: {
-    color: '#121212',
+    color: Colors.text,
     position: 'relative',
     fontSize: 35,
   },
@@ -458,15 +686,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
 
-    backgroundColor: 'rgba(74,144,226,1)',
+    backgroundColor: Colors.accent,
     opacity: 1,
     borderRadius: 50,
   },
   textPay: {
-    color: 'white',
+    color: Colors.white,
   },
   textDecline: {
-    color: 'rgba(74,144,226,1)',
+    color: Colors.accent,
   },
 
   declineButtonContainer: {
@@ -476,7 +704,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 50,
-    borderColor: 'rgba(74,144,226,1)',
+    borderColor: Colors.accent,
     borderWidth: 2,
+  },
+  image: {
+    width: 150,
+    height: 100,
+    borderRadius: 13,
+    margin: 3,
+    resizeMode: 'cover',
   },
 });

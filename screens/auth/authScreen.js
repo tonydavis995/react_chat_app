@@ -18,8 +18,18 @@ import {TextInput} from 'react-native-gesture-handler';
 import LinearGradient from 'react-native-linear-gradient';
 import firebase from 'react-native-firebase';
 import OtpInputs from 'react-native-otp-inputs';
+import {login, addName, authStoreToken, authStoreName} from '../../store/actions/auth';
+import AsyncStorage from '@react-native-community/async-storage';
 
-export default class AuthScreen extends Component {
+import {connect} from 'react-redux';
+const mapStateToProps = state => {
+  return {
+    loginState: state.loginReducer,
+    nameState: state.nameReducer,
+  };
+};
+
+class AuthScreen extends Component {
   constructor(props) {
     super(props);
     this.unsubscribe = null;
@@ -29,6 +39,8 @@ export default class AuthScreen extends Component {
       message: '',
       codeInput: '',
       phoneNumber: '',
+      name: '',
+      nameStatus: 'null',
       invalid: false,
       confirmResult: null,
     };
@@ -44,8 +56,28 @@ export default class AuthScreen extends Component {
     } else {
     }
   };
-
-
+  login = async user => {
+    this.props.login(user).then(() => {
+      const status = this.props.loginState.hasName;
+      this.props.authStoreToken(
+        this.props.loginState.token,
+        this.props.loginState.user,
+      );
+      if (status == true) {
+        console.log(this.props.loginState.user.name)
+        this.props.authStoreName(
+          this.props.loginState.user.name
+        );
+        this.goChat();
+      } else {
+        this.setState({nameStatus: null});
+      }
+    });
+  };
+  componentWillUnmount() {
+    this.backHandler.remove()
+    if (this.unsubscribe) this.unsubscribe();
+  }
   componentDidMount() {
     this.backHandler = BackHandler.addEventListener(
       'hardwareBackPress',
@@ -54,7 +86,6 @@ export default class AuthScreen extends Component {
     this.unsubscribe = firebase.auth().onAuthStateChanged(user => {
       if (user) {
         this.setState({user: user.toJSON()});
-        console.log(user);
       } else {
         // User has been signed out, reset the state
         this.setState({
@@ -63,6 +94,8 @@ export default class AuthScreen extends Component {
           message: '',
           codeInput: '',
           phoneNumber: '',
+          name: '',
+          nameStatus: 'null',
           invalid: false,
           confirmResult: null,
         });
@@ -70,15 +103,35 @@ export default class AuthScreen extends Component {
     });
   }
 
-  componentWillUnmount() {
-    if (this.unsubscribe) this.unsubscribe();
-  }
+ 
   goBack = () => {
     this.setState({confirmResult: null, backButton: null});
   };
-  goChat =() => {
+
+  setName = async () => {
+    try {
+      const nameValue = this.state.name;
+      console.log(nameValue);
+      const value = await AsyncStorage.getItem('@UserStore:token')
+      console.log(value)
+      this.props.addName(nameValue, value).then(() => {
+        if (this.props.nameState.name) {
+          this.props.authStoreName(
+            this.props.loginState.user.name
+          );
+          this.goChat();
+        } else {
+          this.setState({nameStatus: null});
+        }
+      });
+    } catch (error) {
+      console.log(error);
+      this.setState({nameStatus: null});
+    }
+  };
+  goChat = () => {
     this.props.navigation.navigate('chat');
-  }
+  };
 
   signIn = () => {
     const {phoneNumber} = this.state;
@@ -102,7 +155,6 @@ export default class AuthScreen extends Component {
       );
   };
 
-
   confirmCode = () => {
     const {codeInput, confirmResult} = this.state;
 
@@ -110,19 +162,20 @@ export default class AuthScreen extends Component {
       confirmResult
         .confirm(codeInput)
         .then(user => {
-          this.setState({message: 'Code Confirmed!'});
+          this.login(user);
         })
-        .catch(error =>
-          
-          {
-            this.setState({message: `Code Confirm Error: ${error.message}`, invalid: true})}
-        );
+        .catch(error => {
+          this.setState({
+            message: `Code Confirm Error: ${error.message}`,
+            invalid: true,
+          });
+        });
     }
   };
-  phoneNumberInputHandler = (number) => {
-    const validNumber = number.replace(/[^0-9]/g,'')
-    this.setState({phoneNumber: validNumber})
-  }
+  phoneNumberInputHandler = number => {
+    const validNumber = number.replace(/[^0-9]/g, '');
+    this.setState({phoneNumber: validNumber});
+  };
   renderPhoneNumberInput() {
     const {phoneNumber} = this.state;
 
@@ -194,25 +247,23 @@ export default class AuthScreen extends Component {
     );
   }
   getTextStyle(invalid) {
-    if(invalid) {
-     return {
-      
-      borderBottomColor: '#ff7f7f',
-      borderBottomWidth: 1,
-      height: '100%',
-      width: '100%',
-
-     }
+    if (invalid) {
+      return {
+        borderBottomColor: Colors.error,
+        borderBottomWidth: 1,
+        height: '100%',
+        width: '100%',
+      };
     } else {
       return {
         height: '100%',
-    padding: 2,
-    margin: 2,
-    width: '100%',
-    fontSize: 25,
-      }
+        padding: 2,
+        margin: 2,
+        width: '100%',
+        fontSize: 25,
+      };
     }
-   }
+  }
   renderBackButton() {
     return (
       <TouchableOpacity
@@ -229,13 +280,15 @@ export default class AuthScreen extends Component {
           name="arrow-back"
           style={{
             fontSize: 25,
-            color: '#fff',
+            color: Colors.white,
           }}
         />
       </TouchableOpacity>
     );
   }
   renderNameScreen() {
+    const {name} = this.state;
+
     return (
       <View style={styles.bottomContainer}>
         <View style={styles.bottomDiv}>
@@ -245,13 +298,15 @@ export default class AuthScreen extends Component {
         <View style={styles.bottomDiv7}>
           <View style={styles.textInput1}>
             <TextInput
+              value={name}
+              onChangeText={value => this.setState({name: value})}
               keyboardType="default"
               style={styles.inputName}></TextInput>
             <Icon name="user" style={styles.mobileIcon} />
           </View>
         </View>
         <View style={styles.bottomDiv4}>
-          <TouchableOpacity onPress={this.goChat} style={styles.button}>
+          <TouchableOpacity onPress={this.setName} style={styles.button}>
             <Text style={styles.buttonText}>Continue</Text>
           </TouchableOpacity>
         </View>
@@ -259,7 +314,7 @@ export default class AuthScreen extends Component {
     );
   }
   render() {
-    const {user, confirmResult, backButton} = this.state;
+    const {user, confirmResult, backButton, nameStatus} = this.state;
     return (
       <TouchableWithoutFeedback
         onPress={() => {
@@ -270,9 +325,9 @@ export default class AuthScreen extends Component {
           keyboardVerticalOffset={50}
           style={styles.screen}>
           <View style={styles.topContainer}>
-            <StatusBar backgroundColor="#6e45e3" />
+            <StatusBar backgroundColor= {Colors.gradient1}/>
             <LinearGradient
-              colors={['#6e45e2', '#88d3ce']}
+              colors={[Colors.gradient1, Colors.gradient2]}
               style={styles.gradientContainer}>
               {backButton && this.renderBackButton()}
 
@@ -286,7 +341,7 @@ export default class AuthScreen extends Component {
           </View>
           {!user && !confirmResult && this.renderPhoneNumberInput()}
           {!user && confirmResult && this.renderVerificationCodeInput()}
-          {user && this.renderNameScreen()}
+          {user && !nameStatus && this.renderNameScreen()}
         </KeyboardAvoidingView>
       </TouchableWithoutFeedback>
     );
@@ -296,6 +351,11 @@ export default class AuthScreen extends Component {
 AuthScreen.navigationOptions = {
   header: null,
 };
+
+export default connect(
+  mapStateToProps,
+  {login, addName, authStoreToken, authStoreName},
+)(AuthScreen);
 
 const styles = StyleSheet.create({
   screen: {
@@ -327,7 +387,7 @@ const styles = StyleSheet.create({
   },
   helperText: {
     flex: 1,
-    color: '#121212',
+    color: Colors.text,
     fontSize: 16,
   },
   bottomDiv: {
@@ -385,7 +445,7 @@ const styles = StyleSheet.create({
     textAlign: 'left',
     fontSize: 25,
 
-    color: '#121212',
+    color: Colors.text,
     flex: 2,
   },
   textInput: {
@@ -420,7 +480,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
- 
+
   inputContainerOne: {
     flex: 8,
     margin: 2,
